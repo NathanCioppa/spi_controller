@@ -8,18 +8,19 @@ module spi_controller #(
 	input clk,
         input [PERIFERAL_COUNT-1:0]sel,
 	input [DATA_SIZE-1:0] in_buf,
-	input copi, // controller out, periferal in 
+	input cipo, // controller in, periferal out
 	input start,
-	output reg cipo, // controller in, periferal out 
+	output reg copi, // controller out, periferal in
 	output reg pclk, // periferal clock
-	output reg [PERIFERAL_COUNT-1:0] psel_low // periferal select, active low
-	output reg [DATA_SIZE-1:0] out_buf;
-	output reg busy;
+	output reg [PERIFERAL_COUNT-1:0] psel_low, // periferal select, active low
+	output reg [DATA_SIZE-1:0] out_buf,
+	output reg busy
 );
 
 localparam PCLK_INITIAL
 
 reg [15:0] counter;
+reg [15:0] pcounter;
 initial pclk = PCLK_INITIAL;
 reg [DATA_SIZE-1:0] in_shift;
 reg [DATA_SIZE-1:0] out_shift;
@@ -31,6 +32,7 @@ always @(posedge clk) begin
 		pclk <= PCLK_INITIAL;
 		in_shift <= in_buf;
 		psel_low <= ~sel;
+		pcounter <= 0;
 	end
 	else if (counter >= CLK_DIV && busy) begin
 		counter <= 0;
@@ -41,7 +43,15 @@ always @(posedge clk) begin
 end
 
 always @(posedge pclk) begin
+	copi <= in_shift[0];
+	in_shift <= in_shift >> 1;
 
+	out_shift <= {cipo, out_shift[DATA_SIZE-1:1]};
+	pcounter <= pcounter + 1;
+	if(pcounter >= DATASIZE-1) begin
+		busy = 0;
+		out_buf <= {cipo, out_shift[DATA_SIZE-1:1]};
+	end
 end
 
 
