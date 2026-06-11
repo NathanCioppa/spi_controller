@@ -6,30 +6,36 @@ module spi_periferal #(
 	input clk,
 	input copi,
 	input sel_low,
+	input [DATA_SIZE-1:0] result,
 	output reg cipo,
+	output reg in_ready,
+	output reg [DATA_SIZE-1:0] in_shift
 );
 
+initial in_ready = 0;
 reg [15:0] counter;
-reg [DATA_SIZE-1:0] in_shift;
 reg [DATA_SIZE-1:0] out_shift;
-reg [DATA_SIZE-1:0] out_buf;
 
 always @(posedge clk) begin
 	if(!sel_low) begin
-		counter <= counter + 1;
-
-		out_shift <= out_shift >> 1;
 		cipo <= out_shift[0];
-
+	
 		in_shift <= {copi, in_shift[DATA_SIZE-1:1]};
+	
 		if(counter >= DATA_SIZE-1) begin
 			counter <= 0;
-			out_shift <= {copi, in_shift[DATA_SIZE-1:1]} * 3; // This specific periferal will just do multiplication by 3
+			in_ready <= 1;
+		end
+		else begin
+			in_ready <= 0;
+			out_shift <= out_shift >> 1;
+			counter <= counter + 1;
 		end
 	end
-
-
-
 end
+
+always @(result) begin
+	out_shift = result;
+end	
 	
 endmodule
