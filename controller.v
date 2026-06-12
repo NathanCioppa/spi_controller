@@ -17,7 +17,7 @@ module spi_controller #(
 	output reg busy
 );
 
-localparam PCLK_INITIAL
+localparam PCLK_INITIAL = 0;
 
 reg [15:0] counter;
 reg [15:0] pcounter;
@@ -48,7 +48,7 @@ always @(posedge pclk) begin
 
 	out_shift <= {cipo, out_shift[DATA_SIZE-1:1]};
 	pcounter <= pcounter + 1;
-	if(pcounter >= DATASIZE-1) begin
+	if(pcounter >= DATA_SIZE-1) begin
 		busy = 0;
 		out_buf <= {cipo, out_shift[DATA_SIZE-1:1]};
 	end

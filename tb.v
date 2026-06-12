@@ -2,25 +2,25 @@
 
 module spi_tb;
 
-localparam WORD_SIZE = 8;
+localparam WORD_SIZE = 4;
 localparam CLK_FREQ = 50_000_000;
 localparam SPI_FREQ = 1_000_000;
 localparam PERIFERAL_COUNT = 1;
 
 reg clk;
 reg [PERIFERAL_COUNT-1:0] sel;
-reg [DATA_SIZE-1:0] in_word_buf;
+reg [WORD_SIZE-1:0] in_word_buf;
 reg start;
 wire cipo;
 wire copi;
 wire pclk;
 wire [PERIFERAL_COUNT-1:0] psel_low;
-reg [DATA_SIZE-1:0] out_word_buf;
+wire [WORD_SIZE-1:0] out_word_buf;
 wire controller_busy;
 
 wire [WORD_SIZE-1:0] out_perif0_word;
 wire perif0_word_ready;
-wire in_perif0_word;
+wire [WORD_SIZE-1:0] in_perif0_word;
 
 spi_controller #(.CLK_FREQ(CLK_FREQ), .SPI_FREQ(SPI_FREQ), .DATA_SIZE(WORD_SIZE), .PERIFERAL_COUNT(PERIFERAL_COUNT)) 
 controller (
@@ -54,9 +54,80 @@ perif0 (
 .result(out_perif0_word)
 );
 
+reg [WORD_SIZE-1:0] out_exp;
 always #(1_000_000_000 / CLK_FREQ / 2)
 	clk = ~clk;
 
+task add1_single_test;
+input [WORD_SIZE-1:0] in;
 
+begin
+	out_exp = in + 1;
+	in_word_buf = in;
+	start = 1;
+
+	#100
+	start = 0;
+	#(CLK_FREQ/2)
+	in_word_buf = 0;
+	start = 1;
+	#100
+	start = 0;
+	#(CLK_FREQ/2)
+
+	if(out_word_buf != out_exp) begin
+		$display("FAILED add1_single_test with input:");
+		$display(in);
+		$display("got:");
+		$display(out_word_buf);
+		$display(" ");
+	end
+end
+
+endtask
+
+integer i;
+
+initial begin
+
+	$display("Testing add1_module for all single word patterns ...");
+	for(i=0; i < 2**WORD_SIZE; i=i+1)
+		add1_module_test(i);
+
+
+	$display("Testing all single word patterns ...");
+	for(i=0; i < 2**WORD_SIZE; i=i+1)
+		add1_single_test(i);
+
+
+	$display("DONE");
+	$finish;
+end
+
+reg [WORD_SIZE-1:0] in_a;
+reg in_ready_a = 0;
+wire [WORD_SIZE-1:0] out_a;
+add1_perif #(.DATA_SIZE(WORD_SIZE)) a (.in(in_a), .in_ready(in_ready_a), .result(out_a));
+
+task add1_module_test;
+input [WORD_SIZE-1:0] in;
+	
+begin
+	in_a = in;
+	in_ready_a = 1;
+	#100
+	in_ready_a = 0;
+
+	out_exp = in+1;
+	if(out_a != out_exp) begin
+		$display("FAILED add1_module_test with input:");
+		$display(in);
+		$display("got:");
+		$display(out_a);
+	end
+end
+
+	
+endtask
 
 endmodule
