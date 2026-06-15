@@ -24,6 +24,7 @@ reg [15:0] pcounter;
 initial pclk = PCLK_INITIAL;
 reg [DATA_SIZE-1:0] in_shift;
 reg [DATA_SIZE-1:0] out_shift;
+initial busy = 0;
 
 always @(posedge clk) begin
 	if(start && !busy) begin
@@ -37,22 +38,33 @@ always @(posedge clk) begin
 	else if (counter >= CLK_DIV && busy) begin
 		counter <= 0;
 		pclk <= ~pclk;
+		if(pclk == 0) begin
+			copi <= in_shift[0];
+			in_shift <= in_shift >> 1;
+
+			out_shift <= {cipo, out_shift[DATA_SIZE-1:1]};
+			pcounter <= pcounter + 1;
+			if(pcounter >= DATA_SIZE-1) begin
+				busy <= 0;
+				out_buf <= {cipo, out_shift[DATA_SIZE-1:1]};
+			end
+		end
 	end
 	else if (busy)
-		counter = counter+1;
+		counter <= counter+1;
 end
 
-always @(posedge pclk) begin
-	copi <= in_shift[0];
-	in_shift <= in_shift >> 1;
-
-	out_shift <= {cipo, out_shift[DATA_SIZE-1:1]};
-	pcounter <= pcounter + 1;
-	if(pcounter >= DATA_SIZE-1) begin
-		busy = 0;
-		out_buf <= {cipo, out_shift[DATA_SIZE-1:1]};
-	end
-end
+//always @(posedge pclk && 0) begin
+//	copi <= in_shift[0];
+//	in_shift <= in_shift >> 1;
+//
+//	out_shift <= {cipo, out_shift[DATA_SIZE-1:1]};
+//	pcounter <= pcounter + 1;
+//	if(pcounter >= DATA_SIZE-1) begin
+//		busy <= 0;
+//		out_buf <= {cipo, out_shift[DATA_SIZE-1:1]};
+//	end
+//end
 
 
 endmodule

@@ -25,7 +25,6 @@ always @(posedge clk) begin
 		if(counter >= DATA_SIZE-1) begin
 			counter <= 0;
 			in_ready <= 1;
-			$display("in_ready getting 1");
 		end
 		else begin
 			in_ready <= 0;
@@ -36,6 +35,7 @@ always @(posedge clk) begin
 end
 
 always @(result) begin
+	$display("YYY");
 	out_shift <= result;
 end	
 	

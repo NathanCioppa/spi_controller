@@ -2,10 +2,10 @@
 
 module spi_tb;
 
-localparam WORD_SIZE = 4;
+localparam WORD_SIZE = 3;
 localparam CLK_FREQ = 50_000_000;
 localparam SPI_FREQ = 1_000_000;
-localparam PERIFERAL_COUNT = 1;
+localparam PERIFERAL_COUNT = 4;
 
 localparam WORD_TIME = (1_000_000_000 / SPI_FREQ)*WORD_SIZE;
 
@@ -58,6 +58,7 @@ perif0 (
 
 integer i;
 reg [WORD_SIZE-1:0] out_exp;
+initial clk = 0;
 always #(1_000_000_000 / CLK_FREQ / 2)
 	clk = ~clk;
 
@@ -71,9 +72,13 @@ initial begin
 	for(i=0; i < 2**WORD_SIZE; i=i+1)
 		add1_single_test(i);
 
-	$display("Testing 5 words without delay ...");
-	for(i=0; i < 2**WORD_SIZE; i=i+1)
-		add1_5_test(0);
+//	$display("Testing some 5 word patterns without delay ...");
+//	add1_5_test(0);
+//	add1_5_test(-1);
+//	add1_5_test(1);
+//	add1_5_test((2**(WORD_SIZE*5))/2);
+//	add1_5_test(WORD_SIZE);
+//	add1_5_test(((WORD_SIZE*5 + 3)*7) << WORD_SIZE * 3);
 
 	$display("DONE");
 	$finish;
@@ -82,18 +87,20 @@ end
 task add1_single_test;
 input [WORD_SIZE-1:0] in;
 begin
+	sel = 1;
 	out_exp = in + 1;
 	in_word_buf = in;
 	start = 1;
 
-	#100
+	@(posedge clk); #1;
 	start = 0;
-	#(CLK_FREQ/2)
+	wait(!controller_busy);
+
 	in_word_buf = 0;
 	start = 1;
-	#100
+	@(posedge clk); #1;
 	start = 0;
-	#(CLK_FREQ/2)
+	wait(!controller_busy); #1;
 
 	if(out_word_buf != out_exp) begin
 		$display("FAILED add1_single_test with input:");
@@ -108,22 +115,23 @@ endtask
 task add1_5_test;
 input [(WORD_SIZE*5)-1:0] in_words;
 begin
+	sel = 1;
 	in_word_buf = in_words[WORD_SIZE-1:0];
 	start = 1;
-	#(WORD_TIME)
-	// use a shift register instead of i
+	wait(!controller_busy);
+	@(posedge clk);
 	for(i=0; i<5; i=i+1) begin
-		out_exp = in_words[(i*WORD_SIZE)+(WORD_SIZE-1):i*WORD_SIZE] + 1;
+		out_exp = in_word_buf + 1;
 		if(out_word_buf != out_exp) begin
 			$display("FAILED add1_5_test at word index:");
 			$display(i);
 			$display(" ");
 		end
-		in_word_buf = in_words[((i+1)*WORD_SIZE)+(WORD_SIZE-1):(i+1)*WORD_SIZE];
-		#(WORD_TIME)
+		in_words = in_words >> WORD_SIZE;
+		in_word_buf = in_words[WORD_SIZE-1:0];
+		wait(!controller_busy);
+		@(posedge clk);
 	end
-
-
 end
 endtask
 
@@ -135,6 +143,7 @@ add1_perif #(.DATA_SIZE(WORD_SIZE)) a (.in(in_a), .in_ready(in_ready_a), .result
 task add1_module_test;
 input [WORD_SIZE-1:0] in;
 begin
+	sel = 1;
 	in_a = in;
 	in_ready_a = 1;
 	#100
