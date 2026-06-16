@@ -2,7 +2,7 @@
 
 module spi_tb;
 
-localparam WORD_SIZE = 3;
+localparam WORD_SIZE = 8;
 localparam CLK_FREQ = 50_000_000;
 localparam SPI_FREQ = 1_000_000;
 localparam PERIFERAL_COUNT = 4;
@@ -21,7 +21,6 @@ wire [WORD_SIZE-1:0] out_word_buf;
 wire controller_busy;
 
 wire [WORD_SIZE-1:0] out_perif0_word;
-wire perif0_word_ready;
 wire [WORD_SIZE-1:0] in_perif0_word;
 
 spi_controller #(.CLK_FREQ(CLK_FREQ), .SPI_FREQ(SPI_FREQ), .DATA_SIZE(WORD_SIZE), .PERIFERAL_COUNT(PERIFERAL_COUNT)) 
@@ -45,14 +44,12 @@ perif0_reciever (
 .sel_low(psel_low[0]),
 .result(out_perif0_word),
 .cipo(cipo),
-.in_ready(perif_word_ready),
-.in_shift(in_perif0_word)
+.complete_word(in_perif0_word)
 );
 
 add1_perif #(.DATA_SIZE(WORD_SIZE)) 
 perif0 (
 .in(in_perif0_word), 
-.in_ready(perif0_word_ready), 
 .result(out_perif0_word)
 );
 
@@ -71,6 +68,10 @@ initial begin
 	$display("Testing all single word patterns ...");
 	for(i=0; i < 2**WORD_SIZE; i=i+1)
 		add1_single_test(i);
+
+	$display("Testing all single word patterns 5 in a row ...");
+	for(i=0; i < 2**WORD_SIZE; i=i+1)
+		add1_same_5_in_a_row_test(i);
 
 //	$display("Testing some 5 word patterns without delay ...");
 //	add1_5_test(0);
@@ -94,15 +95,15 @@ begin
 
 	@(posedge clk); #1;
 	start = 0;
-	wait(!controller_busy);
+	wait(!controller_busy); #1;
 
-	in_word_buf = 0;
+	in_word_buf = 1;
 	start = 1;
 	@(posedge clk); #1;
 	start = 0;
 	wait(!controller_busy); #1;
 
-	if(out_word_buf != out_exp) begin
+	if(out_word_buf !== out_exp) begin
 		$display("FAILED add1_single_test with input:");
 		$display(in);
 		$display("got:");
@@ -111,6 +112,34 @@ begin
 	end
 end
 endtask
+
+integer j;
+
+task add1_same_5_in_a_row_test;
+input [WORD_SIZE-1:0] in;
+begin
+	sel = 1;
+	out_exp = in+1;
+	in_word_buf = in;
+	for(j=0; j<=5; j=j+1)begin
+		start = 1;
+		@(posedge clk); #1;
+		start = 0;
+		wait(!controller_busy); 
+
+		if(j>0 && out_word_buf !== out_exp) begin
+			$display("FAILED add1_same_5_in_a_row with input:");
+			$display(in);
+			$display("got:");
+			$display(out_word_buf);
+			$display("from word index:");
+			$display(j-1);
+			$display(" ");
+		end
+	end
+end
+endtask
+
 
 task add1_5_test;
 input [(WORD_SIZE*5)-1:0] in_words;
@@ -122,7 +151,7 @@ begin
 	@(posedge clk);
 	for(i=0; i<5; i=i+1) begin
 		out_exp = in_word_buf + 1;
-		if(out_word_buf != out_exp) begin
+		if(out_word_buf !== out_exp) begin
 			$display("FAILED add1_5_test at word index:");
 			$display(i);
 			$display(" ");
@@ -138,18 +167,14 @@ endtask
 reg [WORD_SIZE-1:0] in_a;
 reg in_ready_a = 0;
 wire [WORD_SIZE-1:0] out_a;
-add1_perif #(.DATA_SIZE(WORD_SIZE)) a (.in(in_a), .in_ready(in_ready_a), .result(out_a));
+add1_perif #(.DATA_SIZE(WORD_SIZE)) a (.in(in_a), .result(out_a));
 
 task add1_module_test;
 input [WORD_SIZE-1:0] in;
 begin
-	sel = 1;
 	in_a = in;
-	in_ready_a = 1;
-	#100
-	in_ready_a = 0;
-
 	out_exp = in+1;
+
 	if(out_a != out_exp) begin
 		$display("FAILED add1_module_test with input:");
 		$display(in);
