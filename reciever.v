@@ -25,6 +25,12 @@ always @(posedge clk) begin
 		if(counter >= DATA_SIZE-1) begin
 			counter <= 0;
 			complete_word <= {copi, in_shift[DATA_SIZE-1:1]};
+
+			// set out_shift to the last result again, since the
+			// always @(result) block will not again fire if the same
+			// word is sent multiple times in a row. 
+			// If the next word is not identical, this will be 
+			// overridden anyway. 
 			out_shift <= result;
 			cipo <= result[0];
 		end
@@ -32,6 +38,8 @@ always @(posedge clk) begin
 			counter <= counter + 1;
 		end
 	end
+	else
+		cipo <= 0;
 end
 
 always @(result) begin
