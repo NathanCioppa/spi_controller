@@ -2,7 +2,7 @@
 
 module spi_tb;
 
-localparam WORD_SIZE = 8;
+localparam WORD_SIZE = 3;
 localparam CLK_FREQ = 50_000_000;
 localparam SPI_FREQ = 1_000_000;
 localparam PERIFERAL_COUNT = 2;
@@ -49,7 +49,7 @@ perif0_reciever (
 .cipo(cipo),
 .complete_word(in_perif0_word)
 );
-/*
+
 spi_periferal #(.CLK_FREQ(CLK_FREQ), .SPI_FREQ(SPI_FREQ), .DATA_SIZE(WORD_SIZE))
 perif1_reciever (
 .clk(pclk),
@@ -59,19 +59,19 @@ perif1_reciever (
 .cipo(cipo),
 .complete_word(in_perif1_word)
 );
-*/
+
 add1_perif #(.DATA_SIZE(WORD_SIZE)) 
 perif0 (
 .in(in_perif0_word), 
 .result(out_perif0_word)
 );
-/*
+
 mul3_perif #(.DATA_SIZE(WORD_SIZE)) 
 perif1 (
 .in(in_perif1_word), 
 .result(out_perif1_word)
 );
-*/
+
 
 integer i;
 reg [WORD_SIZE-1:0] out_exp;
@@ -101,6 +101,10 @@ initial begin
 	add1_5_test(WORD_SIZE);
 	add1_5_test(((WORD_SIZE*5 + 3)*7) << WORD_SIZE * 3);
 
+	$display("Testing two devices for all single word patterns ...");
+	for(i=0; i < 2**WORD_SIZE; i=i+1)
+		sel_switch_test(i);
+	
 	$display("DONE");
 	$finish;
 end
@@ -187,31 +191,44 @@ endtask
 task sel_switch_test;
 input [WORD_SIZE-1:0] in_word;
 begin
+	in_word_buf = in_word;
+
+	// send input word for sel line b01
 	sel = 1;
 	start = 1;
-
-	in_word_buf = in_word;
 	@(posedge clk); #1;
 	start = 0;
-	wait(!controller_busy);
+	wait(!controller_busy); #1;
+	
+	start = 1;
+	// recieve output word from sel line b01
+	@(posedge clk); #1;
+	start = 0;
+	wait(!controller_busy); #1;
+	out_exp = in_word + 1;
+	if(out_exp !== out_word_buf) begin
+		$display("FAILED sel_switch_test. The first operation was wrong.");
+		$display("Expected: %d, Got: %d", out_exp, out_word_buf);
+	end
 
+	// send input word for sel line b10
 	sel = 2;
 	start = 1;
-
-	@(posedge clk); #1;
-	wait(!controller_busy);
-
-	out_exp = in_word + 1;
-	if(out_exp !== out_word_buf)
-		$display("FAILED sel_switch_test. The first operation was wrong.");
-
 	@(posedge clk); #1;
 	start = 0;
-	wait(!controller_busy);
+	wait(!controller_busy); #1;
 
+	start = 1;
+	// recieve output word from sel line b10
+	@(posedge clk); #1;
+	start = 0;
+	wait(!controller_busy); #1;
 	out_exp = in_word * 3;
-	if(out_exp !== out_word_buf)
+	if(out_exp !== out_word_buf) begin
 		$display("FAILED sel_switch_test. The second operation was wrong.");
+		$display("Expected: %d, Got: %d", out_exp, out_word_buf);
+	end
+	
 end
 endtask
 
