@@ -105,6 +105,11 @@ initial begin
 	for(i=0; i < 2**WORD_SIZE; i=i+1)
 		sel_switch_test(i);
 	
+	$display("Testing two devices for all single word patterns, staggered ...");
+	//for(i=0; i < 2**WORD_SIZE; i=i+1)
+		//sel_switch_staggered_test(i);
+		sel_switch_staggered_test(2);
+	
 	$display("DONE");
 	$finish;
 end
@@ -231,6 +236,59 @@ begin
 	
 end
 endtask
+
+
+task sel_switch_staggered_test;
+input [WORD_SIZE-1:0] in_word;
+begin
+	in_word_buf = in_word;
+
+	// send input word for sel line b01
+	sel = 1;
+	#1;
+	start = 1;
+	@(posedge clk); #1;
+	start = 0;
+	wait(!controller_busy); #1;
+	
+	// send input word for sel line b10
+	sel = 2;
+	#1;
+	start = 1;
+	@(posedge clk); #1;
+	start = 0;
+	wait(!controller_busy); #1;
+
+	// recieve output word from sel line b01
+	sel = 1;
+	#1;
+	start = 1;
+	@(posedge clk); #1;
+	start = 0;
+	wait(!controller_busy); #1;
+	out_exp = in_word + 1;
+	if(out_exp !== out_word_buf) begin
+		$display("FAILED sel_switch_test. The first operation was wrong.");
+		$display("Expected: %d, Got: %d", out_exp, out_word_buf);
+	end
+
+
+	sel = 2;
+	#1;
+	start = 1;
+	// recieve output word from sel line b10
+	@(posedge clk); #1;
+	start = 0;
+	wait(!controller_busy); #1;
+	out_exp = in_word * 3;
+	if(out_exp !== out_word_buf) begin
+		$display("FAILED sel_switch_test. The second operation was wrong.");
+		$display("Expected: %d, Got: %d", out_exp, out_word_buf);
+	end
+end
+endtask
+
+
 
 reg [WORD_SIZE-1:0] in_a;
 reg in_ready_a = 0;

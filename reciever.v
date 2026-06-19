@@ -18,7 +18,7 @@ reg [DATA_SIZE-1:0] in_shift;
 
 always @(posedge clk) begin
 	if(!sel_low) begin
-
+		
 		in_shift <= {copi, in_shift[DATA_SIZE-1:1]}; // read transmission into shift
 		cipo <= out_shift[1]; // transmit next bit
 		out_shift <= out_shift >> 1;
@@ -48,5 +48,7 @@ always @(result) begin
 	out_shift <= result;
 	cipo <= result[0];
 end
+
+
 
 endmodule
